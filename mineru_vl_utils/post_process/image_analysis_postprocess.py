@@ -2,6 +2,15 @@ import html
 import re
 
 from loguru import logger
+from .otsl2html import (
+    OTSL_ECEL,
+    OTSL_FCEL,
+    OTSL_LCEL,
+    OTSL_NL,
+    OTSL_UCEL,
+    OTSL_XCEL,
+    convert_otsl_to_html,
+)
 
 IMAGE_CHART_FIELD_TAGS = {
     "class": ("<|class_start|>", "<|class_end|>"),
@@ -51,6 +60,14 @@ def _build_chart_sub_class_lookup(groups: dict[str, tuple[str, ...]]) -> dict[st
 
 
 CANONICAL_CHART_SUB_CLASS_LOOKUP = _build_chart_sub_class_lookup(CHART_SUB_CLASS_GROUPS)
+OTSL_TABLE_TOKENS = (
+    OTSL_FCEL,
+    OTSL_ECEL,
+    OTSL_LCEL,
+    OTSL_UCEL,
+    OTSL_XCEL,
+    OTSL_NL,
+)
 
 
 def _extract_tagged_field(text: str, start_tag: str, end_tag: str) -> str:
@@ -62,6 +79,10 @@ def _extract_tagged_field(text: str, start_tag: str, end_tag: str) -> str:
     if end_idx < 0:
         return ""
     return text[start_idx:end_idx].strip()
+
+
+def _looks_like_otsl_table(content: str) -> bool:
+    return any(token in content for token in OTSL_TABLE_TOKENS)
 
 def _count_markdown_table_columns(line: str) -> int:
     stripped = line.strip()
@@ -122,6 +143,10 @@ def _split_markdown_table_row(line: str) -> list[str]:
 def convert_markdown_table_to_html(content: str) -> str | None:
     if not content or not content.strip():
         return None
+
+    if _looks_like_otsl_table(content):
+        html_table = convert_otsl_to_html(content)
+        return html_table or None
 
     lines = [line.strip() for line in content.strip().splitlines()]
     if len(lines) < 2 or any(not line for line in lines):
